@@ -1,0 +1,25 @@
+{
+  "name": "SoftMemo",
+  "short_name": "SoftMemo",
+  "description": "随手记录每天想做的事情的轻量备忘录，数据仅存本机",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fbf7ea",
+  "theme_color": "#fbf7ea",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

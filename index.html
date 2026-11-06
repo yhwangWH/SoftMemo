@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#fbf7ea">
+<meta name="description" content="SoftMemo — 随手记录每天想做的事情">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>SoftMemo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #fbf7ea;
+    color: #3a372f;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* ---------- 头部 ---------- */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 12px;
+    padding-top: calc(14px + env(safe-area-inset-top));
+    background: #fefcf4;
+    border-bottom: 1px solid #ece3cf;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+  #exportBtn {
+    font-size: 13px;
+    color: #6b6555;
+    background: #f2ecdb;
+    border: none;
+    border-radius: 999px;
+    padding: 6px 14px;
+    cursor: pointer;
+  }
+  #exportBtn:active { background: #e4e4e8; }
+
+  /* ---------- 列表 ---------- */
+  main {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 16px;
+  }
+  .task-list { list-style: none; }
+  .task {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #fefcf4;
+    border-bottom: 1px solid #f0e9d8;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    cursor: default;
+  }
+  .checkbox {
+    width: 22px;
+    height: 22px;
+    border: 2px solid #c4bca4;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    transition: background 0.15s, border-color 0.15s;
+    cursor: pointer;
+  }
+  .task.done .checkbox { background: #16a34a; border-color: #16a34a; }
+  .checkbox svg { display: none; }
+  .task.done .checkbox svg { display: block; }
+  .task-body { flex: 1; min-width: 0; }
+  .task-text {
+    font-size: 16px;
+    line-height: 1.45;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+  .task.done .task-text { color: #a39d8d; text-decoration: line-through; }
+  .task-time { font-size: 12px; color: #a8a294; margin-top: 4px; }
+
+  /* ---------- 已完成折叠条 ---------- */
+  #doneToggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 16px;
+    background: #fefcf4;
+    border: none;
+    border-bottom: 1px solid #f0e9d8;
+    border-top: 1px solid #ece3cf;
+    font-size: 14px;
+    color: #8e8a7c;
+    cursor: pointer;
+    text-align: left;
+  }
+  #doneToggle .chevron {
+    transition: transform 0.2s;
+    display: inline-flex;
+  }
+  #doneToggle.open .chevron { transform: rotate(90deg); }
+
+  .empty {
+    text-align: center;
+    color: #a8a294;
+    font-size: 15px;
+    padding: 56px 24px 0;
+  }
+
+  /* ---------- 底部输入栏 ---------- */
+  footer {
+    flex-shrink: 0;
+    padding: 10px 14px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    background: #fefcf4;
+    border-top: 1px solid #ece3cf;
+  }
+  #addForm { display: flex; gap: 10px; align-items: center; }
+  #addInput {
+    flex: 1;
+    font-size: 16px;
+    padding: 12px 16px;
+    border: 1px solid #ddd4bd;
+    border-radius: 999px;
+    background: #f6f1e2;
+    outline: none;
+    min-width: 0;
+  }
+  #addInput:focus { border-color: #16a34a; background: #fffdf8; }
+  #addBtn {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 50%;
+    background: #16a34a;
+    color: #fff;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #addBtn:active { background: #128a3e; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SoftMemo</h1>
+  <button id="exportBtn" type="button">导出备份</button>
+</header>
+
+<main id="main">
+  <div class="empty" id="emptyState" hidden>还没有记录，随手写一条吧</div>
+  <ul class="task-list" id="activeList"></ul>
+  <button id="doneToggle" type="button" hidden>
+    <span class="chevron">
+      <svg width="10" height="10" viewBox="0 0 10 10"><path d="M3 1 L7 5 L3 9" fill="none" stroke="#8e8a7c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <span id="doneLabel">已完成</span>
+  </button>
+  <ul class="task-list" id="doneList"></ul>
+</main>
+
+<footer>
+  <form id="addForm" autocomplete="off">
+    <input id="addInput" type="text" placeholder="记一件想做的事…" maxlength="500" enterkeyhint="done">
+    <button id="addBtn" type="submit" aria-label="添加">＋</button>
+  </form>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var KEY = 'softmemo_tasks_v1';
+  var CHECK_SVG = '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6.5 L5 9.5 L10 3" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  var activeList = document.getElementById('activeList');
+  var doneList = document.getElementById('doneList');
+  var doneToggle = document.getElementById('doneToggle');
+  var doneLabel = document.getElementById('doneLabel');
+  var emptyState = document.getElementById('emptyState');
+  var addForm = document.getElementById('addForm');
+  var addInput = document.getElementById('addInput');
+  var exportBtn = document.getElementById('exportBtn');
+
+  var tasks = load();
+  var doneOpen = false; // 打开 APP 时已完成默认收起
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(tasks)); } catch (e) {}
+  }
+
+  // ---------- 相对时间 ----------
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() &&
+           a.getMonth() === b.getMonth() &&
+           a.getDate() === b.getDate();
+  }
+  function relTime(ts) {
+    var d = new Date(ts), now = new Date();
+    var hm = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    if (sameDay(d, now)) return '今天 ' + hm;
+    var yest = new Date(now); yest.setDate(now.getDate() - 1);
+    if (sameDay(d, yest)) return '昨天 ' + hm;
+    var base = pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    return d.getFullYear() === now.getFullYear() ? base : d.getFullYear() + '-' + base;
+  }
+
+  // ---------- 渲染 ----------
+  function buildTask(t) {
+    var li = document.createElement('li');
+    li.className = 'task' + (t.done ? ' done' : '');
+    li.dataset.id = t.id;
+
+    var box = document.createElement('div');
+    box.className = 'checkbox';
+    box.innerHTML = CHECK_SVG;
+
+    var body = document.createElement('div');
+    body.className = 'task-body';
+
+    var text = document.createElement('div');
+    text.className = 'task-text';
+    text.textContent = t.text;
+
+    var time = document.createElement('div');
+    time.className = 'task-time';
+    time.textContent = relTime(t.done ? (t.doneAt || t.createdAt) : t.createdAt);
+
+    body.appendChild(text);
+    body.appendChild(time);
+    li.appendChild(box);
+    li.appendChild(body);
+    return li;
+  }
+
+  function render() {
+    var active = tasks.filter(function (t) { return !t.done; })
+                      .sort(function (a, b) { return b.createdAt - a.createdAt; });
+    var done = tasks.filter(function (t) { return t.done; })
+                    .sort(function (a, b) {
+                      return (b.doneAt || b.createdAt) - (a.doneAt || a.createdAt);
+                    });
+
+    activeList.textContent = '';
+    doneList.textContent = '';
+    active.forEach(function (t) { activeList.appendChild(buildTask(t)); });
+
+    doneToggle.hidden = done.length === 0;
+    doneLabel.textContent = '已完成 (' + done.length + ')';
+    doneToggle.classList.toggle('open', doneOpen);
+    doneList.hidden = !doneOpen;
+    if (doneOpen) done.forEach(function (t) { doneList.appendChild(buildTask(t)); });
+
+    emptyState.hidden = tasks.length !== 0;
+    emptyState.textContent = tasks.length === 0 ? '还没有记录，随手写一条吧'
+                           : active.length === 0 ? '全部完成，很棒' : '';
+  }
+
+  // ---------- 增删改 ----------
+  function addTask(text) {
+    text = text.trim();
+    if (!text) return;
+    tasks.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      text: text,
+      done: false,
+      createdAt: Date.now(),
+      doneAt: null
+    });
+    save();
+    render();
+  }
+
+  function toggleTask(id) {
+    for (var i = 0; i < tasks.length; i++) {
+      if (tasks[i].id === id) {
+        tasks[i].done = !tasks[i].done;
+        tasks[i].doneAt = tasks[i].done ? Date.now() : null;
+        break;
+      }
+    }
+    save();
+    render();
+  }
+
+  function askDelete(id) {
+    var t = null;
+    for (var i = 0; i < tasks.length; i++) if (tasks[i].id === id) t = tasks[i];
+    if (!t) return;
+    if (window.confirm('删除这条记录？\n' + t.text)) {
+      tasks = tasks.filter(function (x) { return x.id !== id; });
+      save();
+      render();
+    }
+  }
+
+  // ---------- 事件 ----------
+  addForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    addTask(addInput.value);
+    addInput.value = '';
+    addInput.focus();
+  });
+
+  // 打钩：点击圆形复选框
+  var lpFired = false;
+  function onClick(e) {
+    if (lpFired) { lpFired = false; return; }
+    var row = e.target.closest('.task');
+    if (!row) return;
+    if (e.target.closest('.checkbox')) toggleTask(row.dataset.id);
+  }
+  activeList.addEventListener('click', onClick);
+  doneList.addEventListener('click', onClick);
+
+  // 长按删除（500ms），移动/抬起取消
+  var lpTimer = null, sx = 0, sy = 0;
+  function onDown(e) {
+    var row = e.target.closest('.task');
+    if (!row) return;
+    sx = e.clientX; sy = e.clientY;
+    lpFired = false;
+    lpTimer = setTimeout(function () {
+      lpFired = true;
+      if (navigator.vibrate) navigator.vibrate(30);
+      askDelete(row.dataset.id);
+    }, 500);
+  }
+  function onCancel(e) {
+    if (e.type === 'pointermove' &&
+        Math.abs(e.clientX - sx) < 10 && Math.abs(e.clientY - sy) < 10) return;
+    if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; }
+    // 长按已触发但点击事件仍会补发，延迟复位标志避免误吞下一次点击
+    if (e.type === 'pointerup' && lpFired) {
+      setTimeout(function () { lpFired = false; }, 400);
+    }
+  }
+  [activeList, doneList].forEach(function (list) {
+    list.addEventListener('pointerdown', onDown);
+    list.addEventListener('pointermove', onCancel);
+    list.addEventListener('pointerup', onCancel);
+    list.addEventListener('pointercancel', onCancel);
+    list.addEventListener('contextmenu', function (e) { // 桌面端右键删除
+      var row = e.target.closest('.task');
+      if (row) { e.preventDefault(); askDelete(row.dataset.id); }
+    });
+  });
+
+  // 已完成折叠
+  doneToggle.addEventListener('click', function () {
+    doneOpen = !doneOpen;
+    render();
+  });
+
+  // 时间标签每分钟自动刷新（不重建列表，避免滚动位置丢失）
+  setInterval(function () {
+    document.querySelectorAll('.task-time').forEach(function (el) {
+      var row = el.closest('.task');
+      var t = null;
+      for (var i = 0; i < tasks.length; i++) if (tasks[i].id === row.dataset.id) t = tasks[i];
+      if (t) el.textContent = relTime(t.done ? (t.doneAt || t.createdAt) : t.createdAt);
+    });
+  }, 60000);
+
+  // ---------- 导出备份 ----------
+  exportBtn.addEventListener('click', function () {
+    var data = {
+      app: 'SoftMemo',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      count: tasks.length,
+      tasks: tasks
+    };
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'softmemo-backup-' +
+      new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-').replace(/-/g, '').slice(0, 8) +
+      '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  // ---------- PWA ----------
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').catch(function () {});
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
